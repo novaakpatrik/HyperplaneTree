@@ -16,8 +16,8 @@ public class GenericHyperplaneTreeNode extends HyperplaneTreeNode {
 
     @Override
     void setUpReferencePoints(AbstractPivotChooser pivotChooser) {
-        leftReferencePoint = pivotChooser.getPivot();
-        rightReferencePoint = pivotChooser.getPivot();
+        leftReferencePoint = pivotChooser.getNextPivot();
+        rightReferencePoint = pivotChooser.getNextPivot();
     }
 
     @Override

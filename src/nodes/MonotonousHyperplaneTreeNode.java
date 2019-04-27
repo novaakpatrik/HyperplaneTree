@@ -28,10 +28,10 @@ public class MonotonousHyperplaneTreeNode extends HyperplaneTreeNode {
     void setUpReferencePoints(AbstractPivotChooser pivotChooser) {
 
         if (leftReferencePoint == null) {
-            leftReferencePoint = pivotChooser.getPivot();
+            leftReferencePoint = pivotChooser.getNextPivot();
         }
 
-        rightReferencePoint = pivotChooser.getPivot();
+        rightReferencePoint = pivotChooser.getNextPivot();
         pivotChooser.clear();
     }
 

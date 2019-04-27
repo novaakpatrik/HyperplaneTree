@@ -6,10 +6,11 @@ import messif.buckets.BucketStorageException;
 import messif.buckets.CapacityFullException;
 import messif.buckets.split.impl.SplitPolicyGeneralizedHyperplane;
 import messif.objects.LocalAbstractObject;
+import messif.operations.query.KNNQueryOperation;
 import messif.operations.query.RangeQueryOperation;
 import messif.pivotselection.AbstractPivotChooser;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 
 public abstract class HyperplaneTreeNode {
@@ -63,7 +64,7 @@ public abstract class HyperplaneTreeNode {
     abstract void setUpReferencePoints(AbstractPivotChooser pivotChooser);
 
     private List<Bucket> splitIntoBuckets(BucketDispatcher bucketDispatcher) throws BucketStorageException {
-        List<Bucket> buckets = Arrays.asList(bucketDispatcher.createBucket());
+        List<Bucket> buckets = new ArrayList<>();
         SplitPolicyGeneralizedHyperplane splitPolicy = setUpSplitPolicy();
 
         bucket.split(splitPolicy, buckets, bucketDispatcher, RIGHT_BUCKET_INDEX);
@@ -91,8 +92,9 @@ public abstract class HyperplaneTreeNode {
             return;
         }
 
-        float leftPivotDistance = leftReferencePoint.getDistance(operation.getQueryObject());
-        float rightPivotDistance = rightReferencePoint.getDistance(operation.getQueryObject());
+        LocalAbstractObject queryObject = operation.getQueryObject();
+        float leftPivotDistance = queryObject.getDistance(leftReferencePoint);
+        float rightPivotDistance = queryObject.getDistance(rightReferencePoint);
         float radius = operation.getRadius();
 
         //pivot exclusion
@@ -107,4 +109,45 @@ public abstract class HyperplaneTreeNode {
             rightChild.rangeSearch(operation);
     }
 
+    public void nearestNeighborSearch(KNNQueryOperation operation) {
+        if (bucket != null) {
+            bucket.processQuery(operation);
+            return;
+        }
+
+        LocalAbstractObject queryObject = operation.getQueryObject();
+        float leftPivotDistance = queryObject.getDistance(leftReferencePoint);
+        float rightPivotDistance = queryObject.getDistance(rightReferencePoint);
+        float answerDistance = operation.getAnswerDistance();
+
+        //pivot exclusion
+        if (leftPivotDistance <= answerDistance)
+            operation.addToAnswer(leftReferencePoint);
+        if (rightPivotDistance <= answerDistance)
+            operation.addToAnswer(rightReferencePoint);
+        //hyperplane exclusion
+        if (leftPivotDistance - answerDistance <= rightPivotDistance + answerDistance)
+            leftChild.nearestNeighborSearch(operation);
+        if (leftPivotDistance + answerDistance >= rightPivotDistance - answerDistance)
+            rightChild.nearestNeighborSearch(operation);
+    }
+
+    public void propagateBucketCapacity(BucketDispatcher bucketDispatcher, long desiredBucketCapacity) throws BucketStorageException {
+
+        long currentCapacity = bucketDispatcher.getBucketCapacity();
+
+        if (currentCapacity <= desiredBucketCapacity)
+            return;
+
+        long newCapacity = currentCapacity / 2;
+
+        if (newCapacity < desiredBucketCapacity)
+            newCapacity = desiredBucketCapacity;
+
+        bucketDispatcher.setBucketCapacity(newCapacity);
+        split(bucketDispatcher);
+
+        leftChild.propagateBucketCapacity(bucketDispatcher, desiredBucketCapacity);
+        rightChild.propagateBucketCapacity(bucketDispatcher, desiredBucketCapacity);
+    }
 }
